@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import pathlib
+import random
 import tempfile
 from typing import List
 
@@ -11,9 +12,9 @@ from pydantic import BaseModel
 
 
 class Quiz(BaseModel):
-    question: str = 'The question'
-    options: List[str] = ["option 1", "option 2", "option 3", ]
-    answer: str = 'The answer'
+    question: str
+    options: List[str]
+    answer: str
 
 
 class YTShorts:
@@ -58,13 +59,14 @@ class YTShorts:
         )
 
         shift = 70
+        random.shuffle(self.quiz.options)
         for ix, option in enumerate(self.quiz.options):
             video = video.filter(
                 'drawtext',
                 text=f"{ix + 1}) {option}",
                 fontcolor="white",
                 fontsize=50,
-                x=f'(w-text_w)/2', y=f'((h-text_h)/4)+{shift}',
+                x=f'450', y=f'((h-text_h)/4)+{shift}',
                 enable=f'between(t,5,10)'
             )
             shift = shift + 60
@@ -148,12 +150,16 @@ def get_quizzes(theme: str, size: int = 3):
         raise
 
 
-if __name__ == "__main__":
-    # yts = YTShorts(quiz=Quiz())
-    # yts.create_shorts_video()
-    # print(f"Video created at {yts.output_video}")
-
-    quizzes = get_quizzes(theme="capital cities", size=3)
+def main():
+    # quizzes = get_quizzes(theme="capital cities", size=3)
+    quizzes = [
+        {'question': 'What is the capital city of France?', 'options': ['Paris', 'Berlin', 'Madrid', 'Rome'],
+         'answer': 'Paris'},
+        {'question': 'What is the capital city of Japan?', 'options': ['Tokyo', 'Beijing', 'Seoul', 'Bangkok'],
+         'answer': 'Tokyo'},
+        {'question': 'What is the capital city of Australia?',
+         'options': ['Sydney', 'Melbourne', 'Canberra', 'Perth'], 'answer': 'Canberra'}
+    ]
     result = []
     for i in quizzes:
         print("quiz", i)
@@ -161,5 +167,18 @@ if __name__ == "__main__":
         yts.create_shorts_video()
         result.append(yts)
 
+    print(quizzes)
+
     for yts in result:
         print(f"Video created at {yts.output_video}")
+
+
+if __name__ == "__main__":
+    # yts = YTShorts(quiz=Quiz(
+    #     question='The question',
+    #     options=["option 1", "option 2", "option 3"],
+    #     answer="The answer"
+    # ))
+    # yts.create_shorts_video()
+    # print(f"Video created at {yts.output_video}")
+    main()

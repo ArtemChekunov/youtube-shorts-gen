@@ -15,6 +15,30 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 
+def split_string(text, max_length):
+    words = text.split()
+    result = []
+    current_line = ""
+
+    for word in words:
+        # Check if adding the next word exceeds the max length
+        if len(current_line) + len(word) + 1 > max_length:  # +1 for space
+            result.append(current_line)
+            current_line = word  # Start a new line
+        else:
+            # Add the word to the current line
+            if current_line:  # Add a space before word if line is not empty
+                current_line += " " + word
+            else:
+                current_line = word
+
+    # Add the last line
+    if current_line:
+        result.append(current_line)
+
+    return result
+
+
 class MyBaseModel(BaseModel):
     background_music: str = './assets/music/default_background.mp3'
     background_image: str = './assets/pictures/default_background.jpg'
@@ -97,14 +121,20 @@ class YTShorts:
         video = ffmpeg.input(self.resized_image, loop=1, t=self.duration).filter('scale', 1080, 1920)
 
         # add question
-        video = video.filter(
-            'drawtext',
-            text=self.quiz.question,
-            fontcolor="white",
-            fontsize=50,
-            x='(w-text_w)/2', y='(h-text_h)/4',
-            enable=f'between(t,0,5)'
-        )
+        shift_question = 60
+        question = split_string(self.quiz.question, 30)
+        for i in question:
+            video = video.filter(
+                'drawtext',
+                text=i,
+                fontcolor="white",
+                fontsize=50,
+                x=f'(w-text_w)/2', y=f'((h-text_h)/4)+{shift_question}',
+                enable=f'between(t,0,5)'
+            )
+            shift_question = shift_question + 60
+
+
 
         # add options
         video = video.filter(
@@ -124,7 +154,7 @@ class YTShorts:
                 text=f"{ix + 1}) {option}",
                 fontcolor="white",
                 fontsize=50,
-                x=f'450', y=f'((h-text_h)/4)+{shift}',
+                x=f'100', y=f'((h-text_h)/4)+{shift}',
                 enable=f'between(t,5,10)'
             )
             shift = shift + 60

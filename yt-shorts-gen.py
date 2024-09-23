@@ -15,22 +15,21 @@ class Quiz(BaseModel):
     question: str
     options: List[str]
     answer: str
+    background_music: str = './assets/music/default_background.mp3'
+    background_image: str = './assets/pictures/default_background.jpg'
 
 
 class YTShorts:
-    def __init__(self, quiz: Quiz, duration=15, background_music='./background.mp3',
-                 background_image='pexels-abdghat-1631677.jpg'):
+    def __init__(self, quiz: Quiz,):
         self.tmp_dir = pathlib.Path(tempfile.mkdtemp())
         self.resized_image = self.tmp_dir.joinpath("resized_image.jpg")
         self.output_video = self.tmp_dir.joinpath("output_video.mp4")
-        self.duration = duration
-        self.background_image = background_image
-        self.background_music = background_music
+        self.duration = 15
         self.quiz = quiz
 
     def resize_picture(self):
         print("resize_picture", self.resized_image)
-        img = Image.open(self.background_image)
+        img = Image.open(self.quiz.background_image)
         img = img.resize((1080, 1920))
         img.save(self.resized_image)
 
@@ -85,7 +84,7 @@ class YTShorts:
 
     def mk_audio_stream(self):
         print("mk_audio_stream")
-        audio_stream = ffmpeg.input(self.background_music)
+        audio_stream = ffmpeg.input(self.quiz.background_music)
         audio_stream = audio_stream.filter('volume', 0.5)
         audio_stream = audio_stream.filter('atrim', start=0, end=self.duration)
         audio_stream = audio_stream.filter('afade', type='out', start_time=self.duration - 2, duration=2)

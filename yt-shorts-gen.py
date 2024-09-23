@@ -1,26 +1,57 @@
 #!/usr/bin/env python3
+import argparse
 import json
 import pathlib
 import random
+import sys
 import tempfile
-from typing import List
+from functools import cached_property
+from typing import List, Optional, Dict
 
 import ffmpeg
+import yaml
 from PIL import Image
 from openai import OpenAI
 from pydantic import BaseModel
 
 
-class Quiz(BaseModel):
-    question: str
-    options: List[str]
-    answer: str
+class MyBaseModel(BaseModel):
     background_music: str = './assets/music/default_background.mp3'
     background_image: str = './assets/pictures/default_background.jpg'
 
 
+class Quiz(MyBaseModel):
+    question: str
+    options: List[str]
+    answer: str
+
+
+class Profile(MyBaseModel):
+    static: Optional[List[Dict]] = None
+    prompt_theme: Optional[str] = None
+    prompt_request_size: int = 3
+
+
+    @cached_property
+    def quizzes(self) -> List[Quiz]:
+        if self.static:
+            result = self.static
+
+        elif self.prompt_theme:
+            result = get_quizzes(theme=self.prompt_theme, size=self.prompt_request_size)
+        else:
+            raise Exception("static or prompt_theme should be defined")
+
+        defaults = {"background_music": self.background_music, "background_image": self.background_image}
+        return [Quiz(**{**defaults, **i}) for i in result]
+
+
+class Config(BaseModel):
+    profiles: Dict[str, Profile]
+
+
 class YTShorts:
-    def __init__(self, quiz: Quiz,):
+    def __init__(self, quiz: Quiz):
         self.tmp_dir = pathlib.Path(tempfile.mkdtemp())
         self.resized_image = self.tmp_dir.joinpath("resized_image.jpg")
         self.output_video = self.tmp_dir.joinpath("output_video.mp4")
@@ -149,35 +180,36 @@ def get_quizzes(theme: str, size: int = 3):
         raise
 
 
-def main():
-    # quizzes = get_quizzes(theme="capital cities", size=3)
-    quizzes = [
-        {'question': 'What is the capital city of France?', 'options': ['Paris', 'Berlin', 'Madrid', 'Rome'],
-         'answer': 'Paris'},
-        {'question': 'What is the capital city of Japan?', 'options': ['Tokyo', 'Beijing', 'Seoul', 'Bangkok'],
-         'answer': 'Tokyo'},
-        {'question': 'What is the capital city of Australia?',
-         'options': ['Sydney', 'Melbourne', 'Canberra', 'Perth'], 'answer': 'Canberra'}
-    ]
+def main(args):
+    with pathlib.Path("profiles.yaml").open() as f:
+        config = Config(**yaml.safe_load(f.read()))
+
+    try:
+        profile = config.profiles[args.profile]
+    except KeyError:
+        print(f"Profile {args.profile} doesn't exist")
+        sys.exit(1)
+
+    print("profile", profile.quizzes)
     result = []
-    for i in quizzes:
+    for i in profile.quizzes:
         print("quiz", i)
-        yts = YTShorts(quiz=Quiz(**i))
+        yts = YTShorts(quiz=i)
         yts.create_shorts_video()
         result.append(yts)
 
-    print(quizzes)
+    print(profile.quizzes)
 
     for yts in result:
         print(f"Video created at {yts.output_video}")
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--profile', required=True, help='profile name')
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    # yts = YTShorts(quiz=Quiz(
-    #     question='The question',
-    #     options=["option 1", "option 2", "option 3"],
-    #     answer="The answer"
-    # ))
-    # yts.create_shorts_video()
-    # print(f"Video created at {yts.output_video}")
-    main()
+    args = get_args()
+    main(args)

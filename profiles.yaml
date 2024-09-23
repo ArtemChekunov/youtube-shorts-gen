@@ -1,0 +1,29 @@
+---
+profiles:
+  dummy:
+    static: [{
+      question: 'The question',
+      options: [ "option 1", "option 2", "option 3" ],
+      answer: "The answer"
+    }]
+
+  static-1:
+    static: [
+      { 'question': 'What is the capital city of France?',
+        'options': [ 'Paris', 'Berlin', 'Madrid', 'Rome' ],
+        'answer': 'Paris'
+      },
+
+      { 'question': 'What is the capital city of Japan?',
+        'options': [ 'Tokyo', 'Beijing', 'Seoul', 'Bangkok' ],
+        'answer': 'Tokyo'
+      },
+
+      { 'question': 'What is the capital city of Australia?',
+        'options': [ 'Sydney', 'Melbourne', 'Canberra', 'Perth' ],
+        'answer': 'Canberra'
+      }
+    ]
+
+  capital-cities:
+    prompt_theme: "capital cities"

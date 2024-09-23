@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+import json
 import pathlib
 import tempfile
 from typing import List
 
 import ffmpeg
 from PIL import Image
+from openai import OpenAI
 from pydantic import BaseModel
 
 
@@ -105,8 +107,59 @@ class YTShorts:
         ).run()
 
 
-if __name__ == "__main__":
-    yts = YTShorts(quiz=Quiz())
-    yts.create_shorts_video()
+def get_quizzes(theme: str, size: int = 3):
+    client = OpenAI()
+    prompt = f"""
+        Please provide a list of {size} quizzes about {theme} in **valid JSON format**. 
+        The JSON should be an array of dictionaries. 
+        Each dictionary must have the following fields:
+        
+        - "question" (string): The quiz question.
+        - "options" (array of strings): The available options.
+        - "answer" (string): The correct answer.
+        
+        **Important**: 
+        - Return only the raw JSON content.
+        - Do not include any additional labels, such as `content` or `json_string`.
+        - Do not include any explanations, comments, or text before or after the JSON.
+        - Ensure that the response is valid, properly formatted JSON.
+        - If there are no results, return an empty array (`[]`).
+    """
 
-    print(f"Video created at {yts.output_video}")
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            },
+        ],
+        temperature=0.7,
+        max_tokens=3500
+    )
+
+    content = completion.choices[0].message.content
+
+    try:
+        return json.loads(content)
+
+    except:
+        print("content", content)
+        raise
+
+
+if __name__ == "__main__":
+    # yts = YTShorts(quiz=Quiz())
+    # yts.create_shorts_video()
+    # print(f"Video created at {yts.output_video}")
+
+    quizzes = get_quizzes(theme="capital cities", size=3)
+    result = []
+    for i in quizzes:
+        print("quiz", i)
+        yts = YTShorts(quiz=Quiz(**i))
+        yts.create_shorts_video()
+        result.append(yts)
+
+    for yts in result:
+        print(f"Video created at {yts.output_video}")

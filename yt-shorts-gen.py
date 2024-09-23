@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 class Quiz(BaseModel):
     question: str = 'The question'
-    options: List[str] = ["option 1"]
+    options: List[str] = ["option 1", "option 2", "option 3", ]
     answer: str = 'The answer'
 
 
@@ -42,27 +42,38 @@ class YTShorts:
             fontcolor="white",
             fontsize=50,
             x='(w-text_w)/2', y='(h-text_h)/4',
-            enable=f'between(t,1,5)'
+            enable=f'between(t,0,5)'
         )
 
         # add options
-        for option in self.quiz.options:
+        video = video.filter(
+            'drawtext',
+            text="Options:",
+            fontcolor="yellow",
+            fontsize=50,
+            x='(w-text_w)/2', y='(h-text_h)/4',
+            enable=f'between(t,5,10)'
+        )
+
+        shift = 70
+        for ix, option in enumerate(self.quiz.options):
             video = video.filter(
                 'drawtext',
-                text=option,
-                fontcolor="yellow",
+                text=f"{ix + 1}) {option}",
+                fontcolor="white",
                 fontsize=50,
-                x='(w-text_w)/2', y='(h-text_h)/4',
+                x=f'(w-text_w)/2', y=f'((h-text_h)/4)+{shift}',
                 enable=f'between(t,5,10)'
             )
+            shift = shift + 60
 
         # add answer
         video = video.filter(
             'drawtext',
             text=self.quiz.answer,
-            fontcolor="red",
+            fontcolor="white",
             fontsize=50,
-            x='(w-text_w)/2', y='3*(h-text_h)/4',
+            x='(w-text_w)/2', y='(h-text_h)/4',
             enable=f'between(t,10,15)'
         )
 
@@ -94,7 +105,6 @@ class YTShorts:
         ).run()
 
 
-# Example usage of the function
 if __name__ == "__main__":
     yts = YTShorts(quiz=Quiz())
     yts.create_shorts_video()

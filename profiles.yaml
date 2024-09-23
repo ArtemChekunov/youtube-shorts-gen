@@ -1,6 +1,7 @@
 ---
 profiles:
   dummy:
+    name: dummy
     static: [{
       question: 'The question',
       options: [ "option 1", "option 2", "option 3" ],
@@ -8,6 +9,7 @@ profiles:
     }]
 
   static-1:
+    name: static-1
     static: [
       { 'question': 'What is the capital city of France?',
         'options': [ 'Paris', 'Berlin', 'Madrid', 'Rome' ],
@@ -26,4 +28,10 @@ profiles:
     ]
 
   capital-cities:
+    name: capital-cities
     prompt_theme: "capital cities"
+
+  famous-battles:
+    name: famous-battles
+    prompt_theme: "famous battles"
+

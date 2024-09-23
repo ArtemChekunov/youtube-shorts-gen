@@ -25,12 +25,32 @@ class Quiz(MyBaseModel):
     options: List[str]
     answer: str
 
+class Storage:
+    def __init__(self, name):
+        self.path = pathlib.Path("profiles.d").joinpath(f"{name}.yaml")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.touch()
+
+    @property
+    def data(self):
+        with self.path.open() as f:
+            data = yaml.safe_load(f.read())
+            return data if data else []
+
+    def write(self, data):
+        with self.path.open('w') as f:
+            return f.write(yaml.dump(data))
+
 
 class Profile(MyBaseModel):
+    name: str
     static: Optional[List[Dict]] = None
     prompt_theme: Optional[str] = None
     prompt_request_size: int = 3
 
+    @property
+    def storage(self):
+        return Storage(self.name)
 
     @cached_property
     def quizzes(self) -> List[Quiz]:
@@ -38,13 +58,21 @@ class Profile(MyBaseModel):
             result = self.static
 
         elif self.prompt_theme:
-            result = get_quizzes(theme=self.prompt_theme, size=self.prompt_request_size)
+            result = get_quizzes(theme=self.prompt_theme, size=self.prompt_request_size, exclude=self.storage.data)
         else:
             raise Exception("static or prompt_theme should be defined")
 
         defaults = {"background_music": self.background_music, "background_image": self.background_image}
         return [Quiz(**{**defaults, **i}) for i in result]
 
+    def save_quizzes(self):
+        data = self.storage.data
+
+
+        for i in self.quizzes:
+            data.append(i.question)
+
+        self.storage.write(list(set(data)))
 
 class Config(BaseModel):
     profiles: Dict[str, Profile]
@@ -139,10 +167,10 @@ class YTShorts:
         ).run()
 
 
-def get_quizzes(theme: str, size: int = 3):
+def get_quizzes(theme: str, size: int = 3, exclude=lambda: []):
     client = OpenAI()
     prompt = f"""
-        Please provide a list of {size} quizzes about {theme} in **valid JSON format**. 
+        Please provide a list of {size} quizzes about {theme} but exclude question names {exclude} in **valid JSON format**. 
         The JSON should be an array of dictionaries. 
         Each dictionary must have the following fields:
         
@@ -200,6 +228,7 @@ def main(args):
 
     print(profile.quizzes)
 
+    profile.save_quizzes()
     for yts in result:
         print(f"Video created at {yts.output_video}")
 

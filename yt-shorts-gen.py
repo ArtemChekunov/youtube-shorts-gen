@@ -1,65 +1,102 @@
 #!/usr/bin/env python3
+import pathlib
+import tempfile
+from typing import List
+
 import ffmpeg
 from PIL import Image
-import tempfile
-import pathlib
+from pydantic import BaseModel
 
-# Function to create a video from an image with text at different timeslots
-def create_shorts_video(image_path, output_path, texts, duration=15):
-    # Ensure the image is vertical (1080x1920)
-    img = Image.open(image_path)
-    img = img.resize((1080, 1920))
 
-    temp_dir = tempfile.TemporaryDirectory()
+class Quiz(BaseModel):
+    question: str = 'The question'
+    options: List[str] = ["option 1"]
+    answer: str = 'The answer'
 
-    resized_image_path = pathlib.Path(temp_dir.name).joinpath("resized_image.jpg")
-    img.save(resized_image_path)
 
-    # Prepare the ffmpeg command using the ffmpeg-python library
-    video = (
-        ffmpeg
-        .input(resized_image_path, loop=1, t=duration)  # Loop image to match video duration
-        .filter('scale', 1080, 1920)  # Set scale to 1080x1920
-    )
+class YTShorts:
+    def __init__(self, quiz: Quiz, duration=15, background_music='./background.mp3',
+                 background_image='pexels-abdghat-1631677.jpg'):
+        self.tmp_dir = pathlib.Path(tempfile.mkdtemp())
+        self.resized_image = self.tmp_dir.joinpath("resized_image.jpg")
+        self.output_video = self.tmp_dir.joinpath("output_video.mp4")
+        self.duration = duration
+        self.background_image = background_image
+        self.background_music = background_music
+        self.quiz = quiz
 
-    # Add different texts at different times using the drawtext filter
-    for idx, (text, start, end, color, position) in enumerate(texts):
-        x, y = position
+    def resize_picture(self):
+        print("resize_picture", self.resized_image)
+        img = Image.open(self.background_image)
+        img = img.resize((1080, 1920))
+        img.save(self.resized_image)
+
+    def mk_video_stream(self):
+        print("mk_video_stream")
+        video = ffmpeg.input(self.resized_image, loop=1, t=self.duration).filter('scale', 1080, 1920)
+
+        # add question
         video = video.filter(
             'drawtext',
-            text=text,
-            fontcolor=color,
+            text=self.quiz.question,
+            fontcolor="white",
             fontsize=50,
-            x=x,
-            y=y,
-            enable=f'between(t,{start},{end})'
+            x='(w-text_w)/2', y='(h-text_h)/4',
+            enable=f'between(t,1,5)'
         )
 
-    audio_stream = ffmpeg.input('./background.mp3')
-    audio_stream = audio_stream.filter('volume', 0.5)
-    audio_stream = audio_stream.filter('atrim', start=0, end=duration)
-    audio_stream = audio_stream.filter('afade', type='out', start_time=duration - 2, duration=2)
+        # add options
+        for option in self.quiz.options:
+            video = video.filter(
+                'drawtext',
+                text=option,
+                fontcolor="yellow",
+                fontsize=50,
+                x='(w-text_w)/2', y='(h-text_h)/4',
+                enable=f'between(t,5,10)'
+            )
 
-    ffmpeg.output(video, audio_stream, output_path, vcodec='libx264', acodec='aac', strict='experimental', pix_fmt='yuv420p').run()
+        # add answer
+        video = video.filter(
+            'drawtext',
+            text=self.quiz.answer,
+            fontcolor="red",
+            fontsize=50,
+            x='(w-text_w)/2', y='3*(h-text_h)/4',
+            enable=f'between(t,10,15)'
+        )
+
+        return video
+
+    def mk_audio_stream(self):
+        print("mk_audio_stream")
+        audio_stream = ffmpeg.input(self.background_music)
+        audio_stream = audio_stream.filter('volume', 0.5)
+        audio_stream = audio_stream.filter('atrim', start=0, end=self.duration)
+        audio_stream = audio_stream.filter('afade', type='out', start_time=self.duration - 2, duration=2)
+
+        return audio_stream
+
+    def create_shorts_video(self):
+        print("create_shorts_video")
+        self.resize_picture()
+        video_stream = self.mk_video_stream()
+        audio_stream = self.mk_audio_stream()
+
+        print("self.output_video", self.output_video)
+
+        ffmpeg.output(
+            video_stream, audio_stream, filename=self.output_video,
+            vcodec='libx264',
+            acodec='aac',
+            strict='experimental',
+            pix_fmt='yuv420p'
+        ).run()
 
 
 # Example usage of the function
 if __name__ == "__main__":
-    # Image path
-    image_path = 'pexels-abdghat-1631677.jpg'
+    yts = YTShorts(quiz=Quiz())
+    yts.create_shorts_video()
 
-    # Text overlays with times and colors
-    # (text, start_time, end_time, color, (x_position, y_position))
-    texts = [
-        ("Welcome", 0, 5, "white", ("(w-text_w)/2", "(h-text_h)/4")),
-        ("Enjoy the Content", 5, 10, "yellow", ("(w-text_w)/2", "(h-text_h)/2")),
-        ("Thank You!", 10, 15, "red", ("(w-text_w)/2", "3*(h-text_h)/4")),
-    ]
-
-    # Output video path
-    output_path = 'output_video.mp4'
-
-    # Create the video with the image and texts
-    create_shorts_video(image_path, output_path, texts)
-
-    print(f"Video created at {output_path}")
+    print(f"Video created at {yts.output_video}")

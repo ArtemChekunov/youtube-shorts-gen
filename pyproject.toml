@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.12"
 ffmpeg-python = "^0.2.0"
 pillow = "^10.4.0"
+pydantic = "^2.9.2"
 
 
 [tool.poetry.group.dev.dependencies]

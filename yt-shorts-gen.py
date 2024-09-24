@@ -13,6 +13,35 @@ import yaml
 from PIL import Image
 from openai import OpenAI
 from pydantic import BaseModel
+import os
+import googleapiclient.discovery
+import googleapiclient.errors
+import googleapiclient.http
+import os
+import google.auth
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
+import googleapiclient.errors
+
+# Replace 'YOUR_CLIENT_SECRET_FILE' with the path to your 'client_secret.json'
+CLIENT_SECRETS_FILE = "/Users/artem/Downloads/YouTube/QuizFlicks/client_secret_734053429627-l5glfvnuuaq6cq4ueu7bntqf4rtha3mr.apps.googleusercontent.com.json"
+
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+API_SERVICE_NAME = "youtube"
+API_VERSION = "v3"
+
+# Authorize the request and store authorization credentials.
+def get_authenticated_service():
+    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
+
+    # Use 'run_local_server()' to authenticate and open browser for user consent
+    credentials = flow.run_local_server(port=0)
+
+    return googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
+
+
+service = get_authenticated_service()
+
 
 
 def split_string(text, max_length):
@@ -196,6 +225,40 @@ class YTShorts:
             pix_fmt='yuv420p'
         ).run()
 
+    def upload(self, category_id="22", privacy_status="public"):
+        """
+            public
+            private
+            unlisted
+        """
+        body = {
+            "snippet": {
+                "title": self.quiz.question,
+                "description": self.quiz.question,
+                "tags": ["shorts", "fun", "entertainment", "education", "quiz"],
+                "categoryId": category_id
+            },
+            "status": {
+                "privacyStatus": privacy_status
+            }
+        }
+
+        # Call the API's videos.insert method to upload the video.
+        insert_request = service.videos().insert(
+            part="snippet,status",
+            body=body,
+            media_body=googleapiclient.http.MediaFileUpload(self.output_video, chunksize=-1, resumable=True)
+        )
+
+        # Perform the upload and handle the response
+        response = None
+        while response is None:
+            status, response = insert_request.next_chunk()
+            if status:
+                print(f"Uploaded {int(status.progress() * 100)}%")
+
+        print(f"Upload complete! Video ID: {response['id']}")
+
 
 def get_quizzes(theme: str, size: int = 3, exclude=lambda: []):
     client = OpenAI()
@@ -254,7 +317,9 @@ def main(args):
         print("quiz", i)
         yts = YTShorts(quiz=i)
         yts.create_shorts_video()
+        yts.upload()
         result.append(yts)
+
 
     print(profile.quizzes)
 

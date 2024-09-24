@@ -12,6 +12,10 @@ pillow = "^10.4.0"
 pydantic = "^2.9.2"
 openai = "^1.47.0"
 pyyaml = "^6.0.2"
+google-auth = "^2.35.0"
+google-auth-oauthlib = "^1.2.1"
+google-auth-httplib2 = "^0.2.0"
+google-api-python-client = "^2.146.0"
 
 
 [tool.poetry.group.dev.dependencies]
